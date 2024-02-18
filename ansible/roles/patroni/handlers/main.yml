@@ -1,0 +1,9 @@
+---
+# handlers file for patroni
+
+- name: patroni restart
+  systemd:
+    name: patroni.service
+    state: restarted
+    enabled: true
+    daemon_reload: true

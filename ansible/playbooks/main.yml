@@ -1,0 +1,49 @@
+---
+
+- hosts: all
+  roles:
+    - { role: general-el8, become: true }
+    - { role: node-exporter, become: true }
+    
+- hosts: db_hosts
+  roles:
+    - { role: postgresql1, become: true }
+    - { role: etcd, become: true }
+    - { role: patroni, become: true }
+
+- hosts: backend_hosts
+  roles:
+    - { role: glusterfs, become: true }
+    - { role: backend, become: true }
+
+- hosts: haproxy_hosts
+  roles: 
+    - { role: haproxy-lb, become: true }
+
+# - hosts: vmetrics
+#   roles:
+#     - { role: vmetrics, become: true }
+#     - { role: vmagent, become: true }
+
+- hosts: grafana
+  roles:
+    - role: grafana
+      become: true 
+      vars:
+        grafana_security:
+          admin_user: admin
+          admin_password: admin
+        grafana_datasources:
+          - name: VictoriaMetrics
+            type: prometheus
+            # access: proxy
+            url: 'http://localhost:8428'
+            basicAuth: false
+        grafana_dashboards:
+          - dashboard_id: 11074
+            revision_id: 9
+            datasource: VictoriaMetrics
+    - role: vmetrics
+      become: true
+    - role: vmagent
+      become: true

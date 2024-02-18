@@ -1,0 +1,7 @@
+# handlers file for VictoriaMetrics
+---
+- name: Restart VMagent service
+  become: true
+  ansible.builtin.service:
+    name: vic-vmagent
+    state: restarted

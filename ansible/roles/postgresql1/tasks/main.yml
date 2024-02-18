@@ -1,0 +1,81 @@
+---
+# tasks file for postgresql
+
+- name: Install postgres repo
+  dnf:
+    name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+    state: present
+    disable_gpg_check: yes
+
+- name: disable default repo
+  command: dnf -qy module disable postgresql
+
+- name: install psycopg2
+  dnf:
+    name: python3-psycopg2
+    state: present
+  
+- name: install pgsql13
+  dnf:
+    name: postgresql13-server
+    state: present
+    disable_gpg_check: yes
+
+# - name: Check initdb
+#   stat: path="/var/lib/pgsql/13/data/base/"
+#   register: pgdata
+
+# - name: pgsql initdb
+#   command:  /usr/pgsql-13/bin/postgresql-13-setup initdb
+#   when: not pgdata.stat.exists
+
+- name: create link ln -s /usr/pgsql-13/bin/* /usr/sbin/
+  shell: |
+    # ls -lah /usr/pgsql-13/bin > /root/path.pg
+    ln -s /usr/pgsql-13/bin/* /usr/sbin/
+    
+# - name: add /usr/pgsql-13/bin to PATH
+#   lineinfile:
+#     path: /etc/profile.d/pgsql.sh
+#     line: export PATH="$PATH:/usr/pgsql-13/bin"
+#     state: present
+#     create: True
+#     insertafter: EOF
+
+# - name: set path
+#   shell: export PATH="$PATH:/usr/pgsql-13/bin"
+
+# - name: copy config
+#   copy:
+#     src: ../files/postgresql.conf
+#     dest: /var/lib/pgsql/13/data/postgresql.conf
+#     owner: postgres
+#     group: postgres
+
+# - name: copy pg_hba
+#   copy:
+#     src: ../files/pg_hba.conf
+#     dest: /var/lib/pgsql/13/data/pg_hba.conf
+#     owner: postgres
+#     group: postgres
+
+# - name: pgsql service start
+#   service:
+#     name: postgresql-13
+#     state: started
+#     enabled: true
+
+# - name: create pgsql user
+#   become: true
+#   become_user: postgres
+#   postgresql_user:
+#     name: test
+#     password: test
+#     state: present
+
+# - name: Create a new database with name "test"
+#   become: true
+#   become_user: postgres
+#   postgresql_db:
+#     name: test
+#     owner: test

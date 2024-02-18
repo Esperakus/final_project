@@ -1,0 +1,40 @@
+---
+# tasks file for backend
+
+  - name: copy static sample
+    copy:
+      src: ../files/index.png
+      dest: /srv/static/index.png
+      mode: 0644
+    run_once: true
+
+  - name: copy http-server
+    copy:
+      src: ../files/web-server
+      dest: /usr/bin/web-server
+      mode: 0755
+
+  - name: copy service file
+    copy:
+      src: ../files/go_web.service
+      dest: /lib/systemd/system/go_web.service
+
+  - name: add record to /etc/hosts
+    lineinfile:
+      path: /etc/hosts
+      line: 192.168.100.200 db
+  
+  - name: add port to firewalld
+    firewalld:
+      zone: public
+      port: 8090/tcp
+      state: enabled
+      permanent: true
+      immediate: true
+
+  - name: start go_web
+    systemd:
+      name: go_web.service
+      state: restarted
+      enabled: yes
+      daemon_reload: yes

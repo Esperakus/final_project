@@ -1,0 +1,10 @@
+---
+# handlers file for etcd
+
+
+- name: restart etcd
+  systemd:
+    name: etcd.service
+    enabled: true
+    state: restarted
+    daemon_reload: true

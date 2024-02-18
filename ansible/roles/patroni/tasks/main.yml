@@ -1,0 +1,40 @@
+---
+# tasks file for patroni
+
+- name: patroni
+  dnf:
+    name:
+      - patroni-etcd
+    state: present
+    update_cache: true
+    
+- name: create patroni data folder
+  file:
+    name: /data/patroni
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: 0750
+
+- name: patroni config
+  template:
+    src: patroni.yml
+    dest: /etc/patroni.yml
+
+- name: add ports to firewall
+  firewalld:
+    zone: public
+    port: "{{ item }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  with_items:
+    - 5432/tcp
+    - 8008/tcp
+
+- name: patroni unit file
+  template:
+    src: patroni.service
+    dest: /etc/systemd/system/patroni.service
+  notify: patroni restart
+

@@ -1,0 +1,81 @@
+---
+- name: Configure systemd
+  when: ansible_service_mgr == "systemd"
+  block:
+  - name: "Systemd | Copy VMagent systemd unit file"
+    ansible.builtin.template:
+      src: vmagent.service.j2
+      dest: /etc/systemd/system/vic-vmagent.service
+      owner: root
+      group: root
+      mode: 0644
+    register: config_template
+    no_log: True
+    notify: Restart VMagent service
+
+  - name: "Systemd | daemon-reload VMagent service"
+    become: true
+    ansible.builtin.systemd:
+      daemon_reload: true
+    when: config_template is changed
+
+  - name: Ensure VMagent service is enabled on boot
+    become: true
+    ansible.builtin.systemd:
+      name: vic-vmagent
+      enabled: true
+
+- name: Configure upstart
+  when: ansible_service_mgr == "upstart"
+  block:
+  - name: "Upstart |  Install vic-vmagent service file"
+    ansible.builtin.template:
+      src: "upstart.j2"
+      dest: "/etc/init.d/vic-vmagent"
+      mode: "0755"
+      owner: root
+      group: root
+    notify: Restart VMagent service
+    register: config_template
+
+  - name: "Upstart |  Enable vic-vmagent service"
+    ansible.builtin.service:
+      name: "vic-vmagent"
+      enabled: "yes"
+    when:
+    - config_template is changed
+
+
+- name: Prepare configuration dir
+  ansible.builtin.file:
+    state: directory
+    path: "{{ vmagent_config_dir }}"
+    mode: 0751
+    owner: "{{ vmagent_system_user }}"
+    group: "{{ vmagent_system_group }}"
+
+- name: Prepare sd configuration dir
+  ansible.builtin.file:
+    state: directory
+    path: "{{ vmagent_sd_config_dir }}"
+    mode: 0777
+    owner: "{{ vmagent_system_user }}"
+    group: "{{ vmagent_system_group }}"
+
+- name: Configure promscrape config
+  ansible.builtin.template:
+    src: prometheus_scrape.yml.j2
+    dest: "{{ vmagent_config_dir }}/config.yml"
+    mode: 0751
+    owner: "{{ vmagent_system_user }}"
+    group: "{{ vmagent_system_group }}"
+  notify: Restart VMagent service
+
+- name: Configure stream aggregation config
+  ansible.builtin.template:
+    src: stream_aggregation.yml.j2
+    dest: "{{ vmagent_config_dir }}/aggregation.yml"
+    mode: 0751
+    owner: "{{ vmagent_system_user }}"
+    group: "{{ vmagent_system_group }}"
+  notify: Restart VMagent service

@@ -1,0 +1,97 @@
+---
+# tasks file for gfs2
+
+- name: set vars
+  set_fact:
+    gluster_path: "{{ item }}:/opt/gluster-volume/" 
+  with_items: "{{ groups['backend_hosts'] }}"
+  run_once: true
+  register: path
+
+- name: add ports to firewall
+  firewalld:
+    zone: public
+    port: "{{ item }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  with_items:
+    - 24007-24008/tcp
+    - 38465-38569/tcp
+    - 49152-49664/tcp
+
+
+# - debug: msg=gluster volume create gfs replica "{{ groups['backend_hosts'] | length }}" "{{ path.results | map(attribute='ansible_facts.gluster_path') | join(' ') }}" force
+
+# - name: debug
+#   debug:
+#     msg: "{{ item.ansible_facts.gluster_path }}"
+#   run_once: true
+
+# - name: debug1
+#   debug:
+#     msg: "{{ groups['backend_hosts'] | join(' ') }}"
+#   run_once: true
+
+# - meta: end_play
+
+- name: enable powertools
+  command: dnf config-manager --set-enabled powertools
+
+- name: install glusterfs repo
+  dnf:
+    name: centos-release-gluster9
+    state: present
+    update_cache: true
+
+- name: install glusterfs service
+  dnf:
+    name: glusterfs-server
+    state: present
+    update_cache: true
+
+- name: make dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - /mnt/gluster
+    - /srv/static
+
+# - name: firewalld off
+#   systemd:
+#     name: firewalld
+#     state: stopped
+#     enabled: false
+
+- name: start glusterd
+  systemd:
+    name: glusterd
+    state: started
+    enabled: true
+
+- name: add backends to cluster
+  command: gluster peer probe "{{ item }}"
+  with_items: "{{ groups['backend_hosts'] }}"
+  run_once: true
+
+- name: create volume
+  shell: gluster volume create gfs replica {{ groups['backend_hosts'] | length }} {{ path.results | map(attribute='ansible_facts.gluster_path') | join(' ') }} force
+  run_once: true
+
+- name: start volume
+  command: gluster volume start gfs
+  run_once: true
+
+- name: set auth allow
+  command: gluster volume set gfs auth.allow "{{ groups['backend_hosts'] | join(',') }}"
+  run_once: true
+
+- name: mount gfs
+  command: mount.glusterfs localhost:/gfs /srv/static
+
+- name: set fstab
+  lineinfile:
+    path: /etc/fstab
+    line: localhost:/gfs /srv/static glusterfs defaults,_netdev,backupvolfile-server=localhost 0 0
